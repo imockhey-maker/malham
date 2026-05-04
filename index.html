@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#ffffff">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="말하면글자로">
+<title>말하면 글자로</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif;
+    background: #f5f4f0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 16px;
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+  }
+
+  #header {
+    text-align: center;
+    padding: 16px 0 20px;
+  }
+
+  #header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1a1a1a;
+  }
+
+  #header p {
+    font-size: 17px;
+    color: #666;
+    margin-top: 6px;
+  }
+
+  #text-display {
+    background: #fff;
+    border: 1.5px solid #e0ddd5;
+    border-radius: 18px;
+    padding: 28px 22px;
+    min-height: 260px;
+    max-height: 420px;
+    overflow-y: auto;
+    margin-bottom: 18px;
+    position: relative;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #placeholder {
+    font-size: 24px;
+    color: #bbb;
+    text-align: center;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%;
+    line-height: 1.7;
+    pointer-events: none;
+  }
+
+  #display-text {
+    font-size: 42px;
+    font-weight: 600;
+    line-height: 1.6;
+    color: #1a1a1a;
+    word-break: break-word;
+  }
+
+  #interim-text {
+    font-size: 42px;
+    font-weight: 400;
+    line-height: 1.6;
+    color: #999;
+    word-break: break-word;
+    margin-top: 4px;
+  }
+
+  .controls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  #mic-btn {
+    flex: 1;
+    height: 88px;
+    border-radius: 18px;
+    border: 2px solid #ccc;
+    background: #fff;
+    cursor: pointer;
+    font-size: 22px;
+    font-weight: 600;
+    color: #1a1a1a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    transition: background 0.15s, transform 0.1s, border-color 0.2s;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  #mic-btn:active { transform: scale(0.97); }
+
+  #mic-btn.listening {
+    background: #fff0f0;
+    border-color: #e24b4a;
+    color: #a32d2d;
+    animation: pulse-border 1.5s infinite;
+  }
+
+  @keyframes pulse-border {
+    0%, 100% { border-color: #e24b4a; }
+    50% { border-color: #f09595; }
+  }
+
+  #mic-dot {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #888;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.2s;
+  }
+
+  #mic-btn.listening #mic-dot {
+    background: #e24b4a;
+    animation: pulse-dot 1s infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.25); }
+  }
+
+  #clear-btn {
+    width: 88px;
+    height: 88px;
+    border-radius: 18px;
+    border: 1.5px solid #e0ddd5;
+    background: #eeecea;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: #666;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  #clear-btn:active { transform: scale(0.97); }
+
+  .size-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #fff;
+    border: 1.5px solid #e0ddd5;
+    border-radius: 14px;
+    padding: 14px 18px;
+    margin-bottom: 12px;
+  }
+
+  .size-label-sm { font-size: 15px; color: #999; }
+  .size-label-lg { font-size: 24px; color: #555; }
+
+  #font-range {
+    flex: 1;
+    accent-color: #e24b4a;
+    cursor: pointer;
+    height: 6px;
+  }
+
+  #font-size-display {
+    font-size: 15px;
+    font-weight: 600;
+    color: #444;
+    min-width: 46px;
+    text-align: right;
+  }
+
+  #status-bar {
+    text-align: center;
+    font-size: 16px;
+    color: #aaa;
+    min-height: 24px;
+    padding-bottom: 8px;
+  }
+
+  #status-bar.active { color: #a32d2d; font-weight: 600; }
+
+  #no-support {
+    display: none;
+    background: #fff0f0;
+    border: 1.5px solid #f09595;
+    border-radius: 14px;
+    padding: 20px;
+    text-align: center;
+    font-size: 18px;
+    color: #a32d2d;
+    margin-bottom: 16px;
+    line-height: 1.7;
+  }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>🎙️ 말하면 글자로</h1>
+  <p>마이크 버튼을 누르고 말씀해 주세요</p>
+</div>
+
+<div id="no-support">
+  ⚠️ 음성 인식을 지원하지 않는 브라우저입니다.<br>
+  <strong>Chrome 브라우저</strong>에서 열어주세요.
+</div>
+
+<div id="text-display">
+  <div id="placeholder">여기에 말씀하신 내용이<br>크게 나타납니다</div>
+  <div id="display-text"></div>
+  <div id="interim-text"></div>
+</div>
+
+<div class="controls">
+  <button id="mic-btn" onclick="toggleMic()">
+    <div id="mic-dot">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+        <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm-7 10a7 7 0 0 0 14 0h-2a5 5 0 0 1-10 0H5zm7 8v3h-2v-3a9 9 0 0 1-6.32-2.68l1.41-1.41A7 7 0 0 0 12 19a7 7 0 0 0 4.91-2.09l1.41 1.41A9 9 0 0 1 12 19z"/>
+      </svg>
+    </div>
+    <span id="btn-text">듣기 시작</span>
+  </button>
+  <button id="clear-btn" onclick="clearText()">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="1.8">
+      <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>
+    </svg>
+    <span>지우기</span>
+  </button>
+</div>
+
+<div class="size-controls">
+  <span class="size-label-sm">가</span>
+  <input type="range" id="font-range" min="24" max="72" value="42" step="4"
+         oninput="updateFontSize(this.value)">
+  <span class="size-label-lg">가</span>
+  <span id="font-size-display">42px</span>
+</div>
+
+<div id="status-bar">준비됨</div>
+
+<script>
+  // Service Worker 등록
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+
+  let recognition = null;
+  let isListening = false;
+  let finalText = '';
+
+  const displayText = document.getElementById('display-text');
+  const interimText = document.getElementById('interim-text');
+  const placeholder  = document.getElementById('placeholder');
+  const micBtn       = document.getElementById('mic-btn');
+  const btnText      = document.getElementById('btn-text');
+  const statusBar    = document.getElementById('status-bar');
+  const noSupport    = document.getElementById('no-support');
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!SR) {
+    noSupport.style.display = 'block';
+    micBtn.disabled = true;
+    micBtn.style.opacity = '0.4';
+  } else {
+    recognition = new SR();
+    recognition.lang = 'ko-KR';
+    recognition.interimResults = true;
+    recognition.continuous = true;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      statusBar.textContent = '🎙️ 듣고 있어요... 말씀해 주세요';
+      statusBar.className = 'active';
+    };
+
+    recognition.onresult = (e) => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) {
+          finalText += t + ' ';
+        } else {
+          interim += t;
+        }
+      }
+      if (finalText || interim) placeholder.style.display = 'none';
+      displayText.textContent = finalText;
+      interimText.textContent = interim;
+      const td = document.getElementById('text-display');
+      td.scrollTop = td.scrollHeight;
+    };
+
+    recognition.onerror = (e) => {
+      if (e.error === 'no-speech') {
+        statusBar.textContent = '말씀이 들리지 않았어요';
+      } else if (e.error === 'not-allowed') {
+        statusBar.textContent = '마이크 사용 권한이 필요합니다';
+        stopListening();
+      } else {
+        statusBar.textContent = '오류: ' + e.error;
+      }
+      statusBar.className = '';
+    };
+
+    recognition.onend = () => {
+      if (isListening) {
+        try { recognition.start(); } catch(err) {}
+      } else {
+        statusBar.textContent = '멈췄습니다';
+        statusBar.className = '';
+      }
+    };
+  }
+
+  function toggleMic() {
+    if (!SR) return;
+    isListening ? stopListening() : startListening();
+  }
+
+  function startListening() {
+    isListening = true;
+    micBtn.classList.add('listening');
+    btnText.textContent = '듣는 중 — 누르면 멈춤';
+    try { recognition.start(); } catch(err) {}
+  }
+
+  function stopListening() {
+    isListening = false;
+    micBtn.classList.remove('listening');
+    btnText.textContent = '듣기 시작';
+    try { recognition.stop(); } catch(err) {}
+    interimText.textContent = '';
+  }
+
+  function clearText() {
+    finalText = '';
+    displayText.textContent = '';
+    interimText.textContent = '';
+    placeholder.style.display = 'block';
+    statusBar.textContent = '지웠습니다';
+    statusBar.className = '';
+    setTimeout(() => {
+      statusBar.textContent = isListening ? '🎙️ 듣고 있어요...' : '준비됨';
+      if (isListening) statusBar.className = 'active';
+    }, 1500);
+  }
+
+  function updateFontSize(val) {
+    displayText.style.fontSize = val + 'px';
+    interimText.style.fontSize = val + 'px';
+    placeholder.style.fontSize = Math.max(18, val - 12) + 'px';
+    document.getElementById('font-size-display').textContent = val + 'px';
+  }
+</script>
+</body>
+</html>
